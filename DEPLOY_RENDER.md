@@ -37,7 +37,7 @@ Preencha os seguintes campos:
 - **Branch**: `main`
 - **Root Directory**: `backend` ⚠️ **IMPORTANTE**
 - **Runtime**: `Python 3`
-- **Build Command**: `pip install -r requirements.txt`
+- **Build Command**: `pip install -r requirements.txt` (sem o prefixo backend/ porque o Root Directory já está configurado)
 - **Start Command**: `python app.py`
 
 **Environment Variables (Variáveis de Ambiente):**
