@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.expo/
+.expo-shared/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Mobile
+android/
+ios/
+web-build/
+mobile/lojamobile/
+
+# Backend - ARQUIVOS IMPORTANTES
+# O banco de dados e uploads são salvar localmente apenas
+# Backups devem ser feitos manualmente com backup.py
+backend/loja.db
+backend/uploads/
+backend/backup/
+
+# Mas NUNCA ignorar a pasta uploads vazia (criada pelo sistema)
+!backend/uploads/.gitkeep
+
