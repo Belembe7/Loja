@@ -223,9 +223,19 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Retornar URL com IP da rede para acesso do mobile
-        local_ip = get_local_ip()
-        url = f"http://{local_ip}:5000/api/uploads/{filename}"
+        # Retornar URL - em produção usa o domínio do Render, em desenvolvimento usa IP local
+        # Detecta se está em produção (Render) ou desenvolvimento local
+        is_production = os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production'
+        
+        if is_production:
+            # Em produção no Render - usa o domínio do request
+            base_url = request.host_url.rstrip('/')
+        else:
+            # Em desenvolvimento local - usa IP da rede
+            local_ip = get_local_ip()
+            base_url = f"http://{local_ip}:5000"
+        
+        url = f"{base_url}/api/uploads/{filename}"
         return jsonify({'url': url, 'filename': filename}), 200
     
     return jsonify({'erro': 'Tipo de arquivo não permitido'}), 400
@@ -321,10 +331,14 @@ if __name__ == '__main__':
     conn.commit()
     conn.close()
     
+    # Configuração para Render (produção) ou desenvolvimento local
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
     print("🚀 Servidor Flask iniciado!")
-    print("📱 API disponível em http://localhost:5000")
-    print("🔐 Login: http://localhost:5000/login.html")
-    print("🌐 Interface Admin: http://localhost:5000/admin.html")
+    print(f"📱 API disponível em http://0.0.0.0:{port}")
+    print("🔐 Login: http://0.0.0.0:{}/login.html".format(port))
+    print("🌐 Interface Admin: http://0.0.0.0:{}/admin.html".format(port))
     print("📂 Imagens salvas em: backend/uploads/")
     print("🔑 Credenciais: admin / ktech2024")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug, host='0.0.0.0', port=port)
