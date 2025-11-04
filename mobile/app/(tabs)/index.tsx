@@ -58,12 +58,19 @@ export default function HomeScreen() {
         `${API_URL}/categorias/${categoriaId}/produtos` : 
         `${API_URL}/produtos`;
       
+      console.log('🔗 Buscando produtos em:', url);
       const response = await fetch(url);
-      const data = await response.json();
       
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Produtos recebidos:', data.length);
       setProdutos(data);
     } catch (error) {
-      console.error('Erro ao buscar produtos:', error);
+      console.error('❌ Erro ao buscar produtos:', error);
+      console.error('URL tentada:', API_URL);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,11 +79,19 @@ export default function HomeScreen() {
 
   const fetchCategorias = async () => {
     try {
+      console.log('🔗 Buscando categorias em:', `${API_URL}/categorias`);
       const response = await fetch(`${API_URL}/categorias`);
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('✅ Categorias recebidas:', data.length);
       setCategorias(data);
     } catch (error) {
-      console.error('Erro ao buscar categorias:', error);
+      console.error('❌ Erro ao buscar categorias:', error);
+      console.error('URL tentada:', API_URL);
     }
   };
 
