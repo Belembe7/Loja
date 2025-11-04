@@ -383,13 +383,16 @@
         // Verificar autenticação ao carregar
         async function verificarAutenticacao() {
             try {
-                const response = await fetch(`${API_URL}/check-auth`);
+                const response = await fetch(`${API_URL}/check-auth`, {
+                    credentials: 'include' // Importante para manter a sessão/cookies
+                });
                 if (!response.ok) {
                     window.location.href = '/login.html';
                     return false;
                 }
                 return true;
             } catch (error) {
+                console.error('❌ Erro ao verificar autenticação:', error);
                 window.location.href = '/login.html';
                 return false;
             }
@@ -422,10 +425,12 @@
         async function handleLogout() {
             try {
                 const response = await fetch(`${API_URL}/logout`, {
-                    method: 'POST'
+                    method: 'POST',
+                    credentials: 'include' // Importante para manter a sessão/cookies
                 });
                 window.location.href = '/login.html';
             } catch (error) {
+                console.error('❌ Erro ao fazer logout:', error);
                 window.location.href = '/login.html';
             }
         }
@@ -433,7 +438,14 @@
         // Carregar categorias
         async function carregarCategorias() {
             try {
-                const response = await fetch(`${API_URL}/categorias`);
+                const response = await fetch(`${API_URL}/categorias`, {
+                    credentials: 'include' // Importante para manter a sessão/cookies
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                
                 categorias = await response.json();
                 
                 // Atualizar select
@@ -449,7 +461,8 @@
                 // Renderizar categorias
                 renderizarCategorias();
             } catch (error) {
-                console.error('Erro ao carregar categorias:', error);
+                console.error('❌ Erro ao carregar categorias:', error);
+                document.getElementById('categoriasList').innerHTML = '<div class="loading">Erro ao carregar categorias</div>';
             }
         }
 
@@ -466,11 +479,11 @@
 
         // Adicionar categoria
         async function adicionarCategoria() {
-            const nome = document.getElementById('categoriaNome').value;
+            const nome = document.getElementById('categoriaNome').value.trim();
             const imagemInput = document.getElementById('categoriaImagem');
             
             if (!nome) {
-                alert('Por favor, insira o nome da categoria');
+                exibirMensagem('Por favor, insira o nome da categoria', 'error');
                 return;
             }
 
@@ -479,7 +492,13 @@
                 
                 // Fazer upload da imagem se houver
                 if (imagemInput.files[0]) {
-                    imagemUrl = await fazerUpload(imagemInput.files[0]);
+                    try {
+                        imagemUrl = await fazerUpload(imagemInput.files[0]);
+                    } catch (uploadError) {
+                        console.error('Erro no upload da imagem:', uploadError);
+                        exibirMensagem(`Erro ao fazer upload: ${uploadError.message}`, 'error');
+                        return;
+                    }
                 }
 
                 const response = await fetch(`${API_URL}/categorias`, {
@@ -487,34 +506,50 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include', // Importante para manter a sessão/cookies
                     body: JSON.stringify({
                         nome: nome,
                         imagem_url: imagemUrl
                     })
                 });
 
+                const responseData = await response.json();
+
                 if (response.ok) {
                     exibirMensagem('Categoria adicionada com sucesso!', 'success');
                     document.getElementById('categoriaNome').value = '';
                     imagemInput.value = '';
                     carregarCategorias();
+                } else if (response.status === 401) {
+                    exibirMensagem('Sessão expirada. Redirecionando para login...', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 2000);
                 } else {
-                    exibirMensagem('Erro ao adicionar categoria', 'error');
+                    const errorMsg = responseData.erro || responseData.mensagem || 'Erro ao adicionar categoria';
+                    exibirMensagem(`Erro: ${errorMsg}`, 'error');
                 }
             } catch (error) {
-                console.error('Erro:', error);
-                exibirMensagem('Erro ao adicionar categoria', 'error');
+                console.error('❌ Erro ao adicionar categoria:', error);
+                exibirMensagem(`Erro de conexão: ${error.message}`, 'error');
             }
         }
 
         // Carregar produtos
         async function carregarProdutos() {
             try {
-                const response = await fetch(`${API_URL}/produtos`);
+                const response = await fetch(`${API_URL}/produtos`, {
+                    credentials: 'include' // Importante para manter a sessão/cookies
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                
                 produtos = await response.json();
                 renderizarProdutos();
             } catch (error) {
-                console.error('Erro ao carregar produtos:', error);
+                console.error('❌ Erro ao carregar produtos:', error);
                 document.getElementById('produtosGrid').innerHTML = '<div class="loading">Erro ao carregar produtos</div>';
             }
         }
@@ -551,14 +586,25 @@
 
         // Adicionar produto
         async function adicionarProduto() {
-            const nome = document.getElementById('produtoNome').value;
-            const preco = document.getElementById('produtoPreco').value;
-            const descricao = document.getElementById('produtoDescricao').value;
-            const estoque = document.getElementById('produtoEstoque').value;
+            const nome = document.getElementById('produtoNome').value.trim();
+            const preco = document.getElementById('produtoPreco').value.trim();
+            const descricao = document.getElementById('produtoDescricao').value.trim();
+            const estoque = document.getElementById('produtoEstoque').value.trim();
             const categoriaId = document.getElementById('produtoCategoria').value;
 
-            if (!nome || !preco || !categoriaId) {
-                exibirMensagem('Por favor, preencha todos os campos obrigatórios', 'error');
+            // Validação dos campos obrigatórios
+            if (!nome) {
+                exibirMensagem('Por favor, preencha o nome do produto', 'error');
+                return;
+            }
+
+            if (!preco || parseFloat(preco) <= 0) {
+                exibirMensagem('Por favor, preencha um preço válido (maior que zero)', 'error');
+                return;
+            }
+
+            if (!categoriaId) {
+                exibirMensagem('Por favor, selecione uma categoria', 'error');
                 return;
             }
 
@@ -567,23 +613,37 @@
                 
                 // Fazer upload da imagem se houver
                 if (produtoImagemSelecionada) {
-                    imagemUrl = await fazerUpload(produtoImagemSelecionada);
+                    try {
+                        imagemUrl = await fazerUpload(produtoImagemSelecionada);
+                    } catch (uploadError) {
+                        console.error('Erro no upload da imagem:', uploadError);
+                        exibirMensagem('Erro ao fazer upload da imagem. Tente novamente.', 'error');
+                        return;
+                    }
                 }
+
+                const produtoData = {
+                    nome: nome,
+                    preco: parseFloat(preco),
+                    descricao: descricao || '',
+                    imagem_url: imagemUrl,
+                    estoque: parseInt(estoque) || 0,
+                    categoria_id: parseInt(categoriaId)
+                };
+
+                console.log('📤 Enviando produto:', produtoData);
 
                 const response = await fetch(`${API_URL}/produtos`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        nome: nome,
-                        preco: parseFloat(preco),
-                        descricao: descricao,
-                        imagem_url: imagemUrl,
-                        estoque: parseInt(estoque) || 0,
-                        categoria_id: parseInt(categoriaId)
-                    })
+                    credentials: 'include', // Importante para manter a sessão/cookies
+                    body: JSON.stringify(produtoData)
                 });
+
+                const responseData = await response.json();
+                console.log('📥 Resposta do servidor:', response.status, responseData);
 
                 if (response.ok) {
                     exibirMensagem('Produto adicionado com sucesso!', 'success');
@@ -598,12 +658,20 @@
                     produtoImagemSelecionada = null;
                     
                     carregarProdutos();
+                } else if (response.status === 401) {
+                    // Erro de autenticação
+                    exibirMensagem('Sessão expirada. Redirecionando para login...', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 2000);
                 } else {
-                    exibirMensagem('Erro ao adicionar produto', 'error');
+                    // Outros erros
+                    const errorMsg = responseData.erro || responseData.mensagem || 'Erro ao adicionar produto';
+                    exibirMensagem(`Erro: ${errorMsg}`, 'error');
                 }
             } catch (error) {
-                console.error('Erro:', error);
-                exibirMensagem('Erro ao adicionar produto', 'error');
+                console.error('❌ Erro ao adicionar produto:', error);
+                exibirMensagem(`Erro de conexão: ${error.message}. Verifique se o servidor está rodando.`, 'error');
             }
         }
 
@@ -612,16 +680,24 @@
             const formData = new FormData();
             formData.append('file', file);
 
+            console.log('📤 Fazendo upload da imagem:', file.name);
+
             const response = await fetch(`${API_URL}/upload`, {
                 method: 'POST',
+                credentials: 'include', // Importante para manter a sessão/cookies
                 body: formData
             });
 
+            const responseData = await response.json();
+            console.log('📥 Resposta do upload:', response.status, responseData);
+
             if (response.ok) {
-                const data = await response.json();
-                return data.url;
+                return responseData.url;
+            } else if (response.status === 401) {
+                throw new Error('Sessão expirada. Faça login novamente.');
             } else {
-                throw new Error('Erro no upload');
+                const errorMsg = responseData.erro || responseData.mensagem || 'Erro no upload';
+                throw new Error(errorMsg);
             }
         }
 
@@ -633,18 +709,27 @@
 
             try {
                 const response = await fetch(`${API_URL}/produtos/${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include' // Importante para manter a sessão/cookies
                 });
+
+                const responseData = await response.json();
 
                 if (response.ok) {
                     exibirMensagem('Produto deletado com sucesso!', 'success');
                     carregarProdutos();
+                } else if (response.status === 401) {
+                    exibirMensagem('Sessão expirada. Redirecionando para login...', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 2000);
                 } else {
-                    exibirMensagem('Erro ao deletar produto', 'error');
+                    const errorMsg = responseData.erro || responseData.mensagem || 'Erro ao deletar produto';
+                    exibirMensagem(`Erro: ${errorMsg}`, 'error');
                 }
             } catch (error) {
-                console.error('Erro:', error);
-                exibirMensagem('Erro ao deletar produto', 'error');
+                console.error('❌ Erro ao deletar produto:', error);
+                exibirMensagem(`Erro de conexão: ${error.message}`, 'error');
             }
         }
 

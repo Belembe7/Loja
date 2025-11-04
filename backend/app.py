@@ -7,29 +7,19 @@ from functools import wraps
 import socket
 
 app = Flask(__name__)
-CORS(app)
 
 # Configuração de sessão (necessária para autenticação)
 app.config['SECRET_KEY'] = 'ktech-secret-key-2024-change-in-production'
 
+# Configuração de sessão para funcionar com cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+# Configurar CORS para permitir credenciais (cookies)
+CORS(app, supports_credentials=True, origins='*')
+
 # Configuração do banco de dados
-# Detecta se está usando PostgreSQL (Render) ou SQLite (local)
-DATABASE_URL = os.environ.get('DATABASE_URL')
-if DATABASE_URL:
-    # PostgreSQL - PERSISTENTE no Render
-    USE_POSTGRESQL = True
-    try:
-        from database import get_db_connection, init_db
-        print("🔗 Usando PostgreSQL (persistente) - dados não desaparecerão!")
-    except ImportError:
-        USE_POSTGRESQL = False
-        DATABASE = 'loja.db'
-        print("⚠️ PostgreSQL configurado mas módulo database.py não encontrado. Usando SQLite.")
-else:
-    # SQLite - VOLÁTIL no Render (pode perder dados)
-    USE_POSTGRESQL = False
-    DATABASE = 'loja.db'
-    print("📦 Usando SQLite (local) - ATENÇÃO: dados podem ser perdidos no Render!")
+DATABASE = 'loja.db'
 
 # Configuração de upload
 UPLOAD_FOLDER = 'uploads'
@@ -67,49 +57,42 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Funções de banco de dados
-if USE_POSTGRESQL:
-    # Usar funções do database.py (PostgreSQL)
-    # get_db_connection e init_db já foram importados acima
-    pass
-else:
-    # SQLite (local)
-    def init_db():
-        """Inicializa o banco de dados criando as tabelas necessárias"""
-        conn = sqlite3.connect(DATABASE)
-        cursor = conn.cursor()
-        
-        # Tabela de categorias
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS categorias (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL UNIQUE,
-                imagem_url TEXT
-            )
-        ''')
-        
-        # Tabela de produtos
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS produtos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                preco REAL NOT NULL,
-                descricao TEXT,
-                imagem_url TEXT,
-                estoque INTEGER DEFAULT 0,
-                categoria_id INTEGER,
-                FOREIGN KEY (categoria_id) REFERENCES categorias(id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+def init_db():
+    """Inicializa o banco de dados criando as tabelas necessárias"""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Tabela de categorias
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS categorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL UNIQUE,
+            imagem_url TEXT
+        )
+    ''')
+    
+    # Tabela de produtos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            preco REAL NOT NULL,
+            descricao TEXT,
+            imagem_url TEXT,
+            estoque INTEGER DEFAULT 0,
+            categoria_id INTEGER,
+            FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
 
-    def get_db_connection():
-        """Retorna uma conexão com o banco de dados"""
-        conn = sqlite3.connect(DATABASE)
-        conn.row_factory = sqlite3.Row
-        return conn
+def get_db_connection():
+    """Retorna uma conexão com o banco de dados"""
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # Inicializar banco de dados ao iniciar o app
 init_db()

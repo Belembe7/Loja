@@ -220,6 +220,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include', // Importante para manter a sessão/cookies
                     body: JSON.stringify({
                         username: username,
                         password: password
@@ -248,12 +249,15 @@
         // Verificar se já está autenticado ao carregar a página
         window.onload = async function() {
             try {
-                const response = await fetch(`${API_URL}/check-auth`);
+                const response = await fetch(`${API_URL}/check-auth`, {
+                    credentials: 'include' // Importante para manter a sessão/cookies
+                });
                 if (response.ok) {
                     window.location.href = '/admin.html';
                 }
             } catch (error) {
                 // Ignorar erro, provavelmente não está autenticado
+                console.log('Usuário não autenticado');
             }
         };
     </script>
