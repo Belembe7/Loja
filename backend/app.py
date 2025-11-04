@@ -91,6 +91,69 @@ def get_db_connection():
 # Inicializar banco de dados ao iniciar o app
 init_db()
 
+# Função para inserir dados de exemplo
+def inserir_dados_exemplo():
+    """Insere dados de exemplo se o banco estiver vazio"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Verificar se já existem dados
+    count = cursor.execute('SELECT COUNT(*) FROM produtos').fetchone()[0]
+    
+    if count == 0:
+        print("📦 Inserindo dados de exemplo...")
+        # Inserir categorias
+        categorias_exemplo = [
+            ('Smartphones', 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400'),
+            ('Laptops', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400'),
+            ('Headphones', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'),
+            ('Smartwatches', 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400')
+        ]
+        
+        categoria_ids = []
+        for cat_nome, cat_img in categorias_exemplo:
+            cursor.execute('INSERT OR IGNORE INTO categorias (nome, imagem_url) VALUES (?, ?)', 
+                          (cat_nome, cat_img))
+            # Obter o ID da categoria inserida ou existente
+            if cursor.lastrowid:
+                categoria_ids.append(cursor.lastrowid)
+            else:
+                cat_row = cursor.execute('SELECT id FROM categorias WHERE nome = ?', (cat_nome,)).fetchone()
+                if cat_row:
+                    categoria_ids.append(cat_row[0])
+        
+        # Inserir produtos de exemplo
+        produtos_exemplo = [
+            ('iPhone 15 Pro', 1299.99, 'Smartphone Apple com chip A17 Pro', 
+             'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400', 15, categoria_ids[0] if len(categoria_ids) > 0 else None),
+            ('MacBook Pro 14"', 2499.99, 'Notebook Apple M3', 
+             'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400', 8, categoria_ids[1] if len(categoria_ids) > 1 else None),
+            ('AirPods Max', 549.99, 'Fones de ouvido over-ear Apple', 
+             'https://images.unsplash.com/photo-1599669454699-248893623440?w=400', 20, categoria_ids[2] if len(categoria_ids) > 2 else None),
+            ('Apple Watch Ultra', 799.99, 'Smartwatch resistente', 
+             'https://images.unsplash.com/photo-1551816230-ef5deaed4a26?w=400', 12, categoria_ids[3] if len(categoria_ids) > 3 else None),
+            ('Samsung Galaxy S24', 999.99, 'Smartphone Android top de linha', 
+             'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400', 18, categoria_ids[0] if len(categoria_ids) > 0 else None),
+            ('Dell XPS 15', 1999.99, 'Notebook premium Dell', 
+             'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400', 10, categoria_ids[1] if len(categoria_ids) > 1 else None)
+        ]
+        
+        for produto in produtos_exemplo:
+            cursor.execute('''
+                INSERT INTO produtos (nome, preco, descricao, imagem_url, estoque, categoria_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', produto)
+        
+        conn.commit()
+        print("✅ Dados de exemplo inseridos com sucesso!")
+    else:
+        print(f"📊 Banco de dados já possui {count} produtos")
+    
+    conn.close()
+
+# Inserir dados de exemplo ao iniciar
+inserir_dados_exemplo()
+
 # Rota de status/health check
 @app.route('/api/status', methods=['GET'])
 @app.route('/api', methods=['GET'])
@@ -295,54 +358,6 @@ def admin_page():
     return send_from_directory('.', 'admin.html')
 
 if __name__ == '__main__':
-    # Inserir alguns dados de exemplo
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Verificar se já existem dados
-    count = cursor.execute('SELECT COUNT(*) FROM produtos').fetchone()[0]
-    
-    if count == 0:
-        # Inserir categorias
-        categorias_exemplo = [
-            ('Smartphones', 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400'),
-            ('Laptops', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400'),
-            ('Headphones', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'),
-            ('Smartwatches', 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400')
-        ]
-        
-        categoria_ids = []
-        for cat_nome, cat_img in categorias_exemplo:
-            cursor.execute('INSERT OR IGNORE INTO categorias (nome, imagem_url) VALUES (?, ?)', 
-                          (cat_nome, cat_img))
-            categoria_ids.append(cursor.lastrowid if cursor.lastrowid else cursor.execute(
-                'SELECT id FROM categorias WHERE nome = ?', (cat_nome,)).fetchone()[0])
-        
-        # Inserir produtos de exemplo
-        produtos_exemplo = [
-            ('iPhone 15 Pro', 1299.99, 'Smartphone Apple com chip A17 Pro', 
-             'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400', 15, categoria_ids[0]),
-            ('MacBook Pro 14"', 2499.99, 'Notebook Apple M3', 
-             'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400', 8, categoria_ids[1]),
-            ('AirPods Max', 549.99, 'Fones de ouvido over-ear Apple', 
-             'https://images.unsplash.com/photo-1599669454699-248893623440?w=400', 20, categoria_ids[2]),
-            ('Apple Watch Ultra', 799.99, 'Smartwatch resistente', 
-             'https://images.unsplash.com/photo-1551816230-ef5deaed4a26?w=400', 12, categoria_ids[3]),
-            ('Samsung Galaxy S24', 999.99, 'Smartphone Android top de linha', 
-             'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400', 18, categoria_ids[0]),
-            ('Dell XPS 15', 1999.99, 'Notebook premium Dell', 
-             'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400', 10, categoria_ids[1])
-        ]
-        
-        for produto in produtos_exemplo:
-            cursor.execute('''
-                INSERT INTO produtos (nome, preco, descricao, imagem_url, estoque, categoria_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', produto)
-    
-    conn.commit()
-    conn.close()
-    
     # Configuração para Render (produção) ou desenvolvimento local
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') != 'production'
