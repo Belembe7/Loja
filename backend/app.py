@@ -91,6 +91,18 @@ def get_db_connection():
 # Inicializar banco de dados ao iniciar o app
 init_db()
 
+# Rota de status/health check
+@app.route('/api/status', methods=['GET'])
+@app.route('/api', methods=['GET'])
+def api_status():
+    """Retorna status da API"""
+    return jsonify({
+        'status': 'online',
+        'mensagem': 'API funcionando! ✅',
+        'servico': 'K-TECH Loja API',
+        'versao': '1.0.0'
+    }), 200
+
 # Rotas de produtos
 @app.route('/api/produtos', methods=['GET'])
 def get_produtos():
