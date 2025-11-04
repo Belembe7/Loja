@@ -185,7 +185,9 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5000/api';
+        // Detectar automaticamente a URL da API (produção no Render ou desenvolvimento local)
+        const API_URL = window.location.origin + '/api';
+        console.log('🔗 API URL:', API_URL);
 
         function showAlert(message, type) {
             const alert = document.getElementById('alert');
