@@ -154,6 +154,17 @@ def inserir_dados_exemplo():
 # Inserir dados de exemplo ao iniciar
 inserir_dados_exemplo()
 
+# Rota raiz para health check do Render
+@app.route('/', methods=['GET', 'HEAD'])
+def root():
+    """Rota raiz para health check"""
+    return jsonify({
+        'status': 'online',
+        'mensagem': 'API funcionando! ✅',
+        'servico': 'K-TECH Loja API',
+        'versao': '1.0.0'
+    }), 200
+
 # Rota de status/health check
 @app.route('/api/status', methods=['GET'])
 @app.route('/api', methods=['GET'])
