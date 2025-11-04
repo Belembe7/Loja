@@ -58,19 +58,24 @@ export default function HomeScreen() {
         `${API_URL}/categorias/${categoriaId}/produtos` : 
         `${API_URL}/produtos`;
       
-      console.log('🔗 Buscando produtos em:', url);
-      const response = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, {
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Produtos recebidos:', data.length);
-      setProdutos(data);
+      setProdutos(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('❌ Erro ao buscar produtos:', error);
-      console.error('URL tentada:', API_URL);
+      console.error('Erro ao buscar produtos:', error);
+      setProdutos([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -79,37 +84,41 @@ export default function HomeScreen() {
 
   const fetchCategorias = async () => {
     try {
-      console.log('🔗 Buscando categorias em:', `${API_URL}/categorias`);
-      const response = await fetch(`${API_URL}/categorias`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(`${API_URL}/categorias`, {
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Categorias recebidas:', data.length);
-      setCategorias(data);
+      setCategorias(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('❌ Erro ao buscar categorias:', error);
-      console.error('URL tentada:', API_URL);
+      console.error('Erro ao buscar categorias:', error);
+      setCategorias([]);
     }
   };
 
   useEffect(() => {
     fetchCategorias();
+    fetchProdutos();
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     fetchProdutos(categoriaSelecionada || undefined);
   }, [categoriaSelecionada]);
 
-  // Carrossel automático de produtos
   useEffect(() => {
     if (produtos.length > 0) {
       const interval = setInterval(() => {
         setProdutoCarouselIndex((prev) => (prev + 1) % produtos.length);
-      }, 5000); // 5 segundos
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [produtos]);
@@ -117,6 +126,7 @@ export default function HomeScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchProdutos(categoriaSelecionada || undefined, true);
+    fetchCategorias();
   };
 
   const handleCategoryPress = (categoriaId: number | null) => {
@@ -124,9 +134,10 @@ export default function HomeScreen() {
   };
 
   const renderProduto = ({ item }: { item: Produto }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.produtoCard}
       onPress={() => router.push(`/product/${item.id}` as any)}
+      activeOpacity={0.8}
     >
       <View style={styles.produtoImageContainer}>
         {item.imagem_url ? (
@@ -137,10 +148,10 @@ export default function HomeScreen() {
             transition={200}
           />
         ) : (
-          <IconSymbol 
-            name={"photo" as any} 
-            size={60} 
-            color="#CCC" 
+          <IconSymbol
+            name={"photo" as any}
+            size={60}
+            color="#CCC"
           />
         )}
       </View>
@@ -164,7 +175,6 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <ThemedText style={styles.tituloDiscover}>K-Tech</ThemedText>
@@ -181,7 +191,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Barra de Pesquisa */}
         <View style={styles.searchContainer}>
           <IconSymbol name="magnifyingglass" size={20} color="#666" />
           <TextInput
@@ -198,14 +207,17 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#EF4444" />
         }
       >
-        {/* Carrossel de Produtos em Destaque */}
         {produtos.length > 0 && produtos[produtoCarouselIndex]?.imagem_url && (
-          <View style={styles.carouselContainer}>
+          <TouchableOpacity
+            style={styles.carouselContainer}
+            onPress={() => router.push(`/product/${produtos[produtoCarouselIndex].id}` as any)}
+            activeOpacity={0.9}
+          >
             <Image
               source={{ uri: produtos[produtoCarouselIndex].imagem_url }}
               style={styles.carouselImage}
               contentFit="cover"
-              transition={200}
+              transition={300}
             />
             <View style={styles.carouselOverlay}>
               <Text style={styles.carouselTitle}>{produtos[produtoCarouselIndex].nome}</Text>
@@ -227,20 +239,15 @@ export default function HomeScreen() {
                 />
               ))}
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
-        {/* Categories */}
         <View style={styles.categoriesSection}>
           <View style={styles.categoriesHeader}>
             <ThemedText style={styles.sectionTitle}>Categorias</ThemedText>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Ver tudo</Text>
-            </TouchableOpacity>
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-            {/* Botão "All" */}
             <TouchableOpacity
               style={[
                 styles.categoryBtn,
@@ -258,7 +265,6 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
             
-            {/* Categorias da API */}
             {categorias.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
@@ -281,17 +287,24 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Products Grid */}
         <View style={styles.productsSection}>
-          <FlatList
-            data={produtos}
-            renderItem={renderProduto}
-            keyExtractor={(item) => item.id.toString()}
-            numColumns={2}
-            scrollEnabled={false}
-            contentContainerStyle={styles.productsGrid}
-            columnWrapperStyle={styles.row}
-          />
+          {produtos.length > 0 ? (
+            <FlatList
+              data={produtos}
+              renderItem={renderProduto}
+              keyExtractor={(item) => item.id.toString()}
+              numColumns={2}
+              scrollEnabled={false}
+              contentContainerStyle={styles.productsGrid}
+              columnWrapperStyle={styles.row}
+            />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <IconSymbol name="photo" size={60} color="#CCC" />
+              <ThemedText style={styles.emptyText}>Nenhum produto encontrado</ThemedText>
+              <ThemedText style={styles.emptySubtext}>Puxe para baixo para atualizar</ThemedText>
+            </View>
+          )}
         </View>
       </ScrollView>
     </ThemedView>
@@ -441,11 +454,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
-  seeAll: {
-    fontSize: 14,
-    color: '#EF4444',
-    fontWeight: '600',
-  },
   categoriesScroll: {
     marginTop: 10,
   },
@@ -499,6 +507,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   produtoImagem: {
     width: '100%',
@@ -517,5 +526,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#EF4444',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
   },
 });
