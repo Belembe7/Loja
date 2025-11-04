@@ -103,6 +103,15 @@ def api_status():
         'versao': '1.0.0'
     }), 200
 
+# Endpoint alternativo para produtos (similar ao exemplo /api/cars)
+@app.route('/api/cars', methods=['GET'])
+def get_cars():
+    """Retorna todos os produtos (alias para /api/produtos)"""
+    conn = get_db_connection()
+    produtos = conn.execute('SELECT * FROM produtos').fetchall()
+    conn.close()
+    return jsonify([dict(produto) for produto in produtos])
+
 # Rotas de produtos
 @app.route('/api/produtos', methods=['GET'])
 def get_produtos():
