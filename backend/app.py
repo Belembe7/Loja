@@ -94,6 +94,40 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def processar_url_imagem(imagem_url, base_url=None):
+    """Converte URL relativa em URL absoluta"""
+    if not imagem_url:
+        return None
+    
+    # Se já é uma URL completa (http:// ou https://), retorna como está
+    if imagem_url.startswith('http://') or imagem_url.startswith('https://'):
+        return imagem_url
+    
+    # Determinar base_url se não fornecido
+    if not base_url:
+        is_production = os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production'
+        if is_production:
+            # Em produção, tenta usar o request context, senão usa URL padrão
+            try:
+                from flask import request
+                base_url = request.host_url.rstrip('/') if hasattr(request, 'host_url') else 'https://loja-3-frjr.onrender.com'
+            except RuntimeError:
+                base_url = 'https://loja-3-frjr.onrender.com'
+        else:
+            # Em desenvolvimento local
+            local_ip = get_local_ip()
+            base_url = f"http://{local_ip}:5000"
+    
+    # Se é uma URL relativa (começa com /), completa com o domínio
+    if imagem_url.startswith('/'):
+        return f"{base_url}{imagem_url}"
+    
+    # Se começa com api/uploads, completa o caminho
+    if imagem_url.startswith('api/uploads/'):
+        return f"{base_url}/{imagem_url}"
+    
+    return imagem_url
+
 # Inicializar banco de dados ao iniciar o app
 init_db()
 
@@ -187,20 +221,49 @@ def api_status():
 @app.route('/api/produtos', methods=['GET'])
 def get_produtos():
     """Retorna todos os produtos"""
+    # Obter base_url do request
+    is_production = os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production'
+    if is_production:
+        base_url = request.host_url.rstrip('/')
+    else:
+        local_ip = get_local_ip()
+        base_url = f"http://{local_ip}:5000"
+    
     conn = get_db_connection()
     produtos = conn.execute('SELECT * FROM produtos').fetchall()
     conn.close()
-    return jsonify([dict(produto) for produto in produtos])
+    
+    # Processar URLs das imagens
+    produtos_processados = []
+    for produto in produtos:
+        produto_dict = dict(produto)
+        if produto_dict.get('imagem_url'):
+            produto_dict['imagem_url'] = processar_url_imagem(produto_dict['imagem_url'], base_url)
+        produtos_processados.append(produto_dict)
+    
+    return jsonify(produtos_processados)
 
 @app.route('/api/produtos/<int:produto_id>', methods=['GET'])
 def get_produto(produto_id):
     """Retorna um produto específico"""
+    # Obter base_url do request
+    is_production = os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production'
+    if is_production:
+        base_url = request.host_url.rstrip('/')
+    else:
+        local_ip = get_local_ip()
+        base_url = f"http://{local_ip}:5000"
+    
     conn = get_db_connection()
     produto = conn.execute('SELECT * FROM produtos WHERE id = ?', (produto_id,)).fetchone()
     conn.close()
     
     if produto:
-        return jsonify(dict(produto))
+        produto_dict = dict(produto)
+        # Processar URL da imagem
+        if produto_dict.get('imagem_url'):
+            produto_dict['imagem_url'] = processar_url_imagem(produto_dict['imagem_url'], base_url)
+        return jsonify(produto_dict)
     return jsonify({'erro': 'Produto não encontrado'}), 404
 
 @app.route('/api/produtos', methods=['POST'])
@@ -285,11 +348,28 @@ def criar_categoria():
 @app.route('/api/categorias/<int:categoria_id>/produtos', methods=['GET'])
 def get_produtos_por_categoria(categoria_id):
     """Retorna produtos de uma categoria específica"""
+    # Obter base_url do request
+    is_production = os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production'
+    if is_production:
+        base_url = request.host_url.rstrip('/')
+    else:
+        local_ip = get_local_ip()
+        base_url = f"http://{local_ip}:5000"
+    
     conn = get_db_connection()
     produtos = conn.execute('SELECT * FROM produtos WHERE categoria_id = ?', 
                            (categoria_id,)).fetchall()
     conn.close()
-    return jsonify([dict(produto) for produto in produtos])
+    
+    # Processar URLs das imagens
+    produtos_processados = []
+    for produto in produtos:
+        produto_dict = dict(produto)
+        if produto_dict.get('imagem_url'):
+            produto_dict['imagem_url'] = processar_url_imagem(produto_dict['imagem_url'], base_url)
+        produtos_processados.append(produto_dict)
+    
+    return jsonify(produtos_processados)
 
 # Rotas de upload
 @app.route('/api/upload', methods=['POST'])
